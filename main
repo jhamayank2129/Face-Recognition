@@ -1,0 +1,54 @@
+import cv2
+import face_recognition as fr
+import numpy as np
+import os
+
+paths = r'D:\class'
+images = []
+names = []
+mylist = os.listdir(paths)
+print(mylist)
+
+
+for cl in mylist:
+    curimg = cv2.imread(f'{paths}/{cl}')
+    images.append(curimg)
+    names.append(os.path.splitext(cl)[0])
+
+
+
+def findencodings(images):
+    encodelist = []
+    for img in images:
+        img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+        enc_img = fr.face_encodings(img)[0]
+        encodelist.append(enc_img)
+    return encodelist
+trained_encode_list = findencodings(images)
+
+cap = cv2.VideoCapture(0)
+while True:
+    success,frame = cap.read()
+    frame_size = cv2.resize(frame,(0,0),None,0.25,0.25)
+    frame_size = cv2.cvtColor(frame_size,cv2.COLOR_BGR2RGB)
+    cur_faces_loc = fr.face_locations(frame_size)
+    cur_faces_encodings = fr.face_encodings(frame_size)
+    
+    for encodeface,faceloc in zip(cur_faces_encodings,cur_faces_loc):
+        matches = fr.compare_faces(trained_encode_list,encodeface)
+        facedist = fr.face_distance(trained_encode_list,encodeface)
+        matchindex = np.argmin(facedist)
+    
+   
+        if matches[matchindex]:
+            name = names[matchindex].upper()
+            y1,x2,y2,x1 = cur_faces_loc[0]
+            y1,x2,y2,x1 = y1*4,x2*4,y2*4,x1*4
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            
+            cv2.putText(frame, name, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 1)
+    cv2.imshow("cam",frame)
+    if cv2.waitKey(1) & 0xff==ord('a'):
+        break
+cap.release()
+cv2.destroyAllWindows()
